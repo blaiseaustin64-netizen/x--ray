@@ -142,6 +142,11 @@ function init() {
       console.error("Scan failed", err);
       scanView.reset();
       showView("idle");
+      const msg =
+        err?.message && err.message.length < 120
+          ? err.message
+          : "Scan failed. Check the URL and try again.";
+      showToast(msg);
     } finally {
       setScanning(false);
     }

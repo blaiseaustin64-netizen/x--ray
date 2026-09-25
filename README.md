@@ -1,78 +1,99 @@
 # VEXDYN X-Ray
 
-Standalone website diagnosis product. Dark graphite + cyan X-Ray visual system.
+Real website diagnostic scanner. Dark graphite + cyan X-Ray UI on Cloudflare Pages + Functions.
 
-## Features
+## Architecture
 
-- **Cinematic scan** — URL input → animated beam, grid, live callouts, phase statuses
-- **Full report** — overall score (0–100), category scores, expandable findings with “Why it matters” + recommended fix
-- **Modular scanner** — demo data today; swap `js/scanner/engine.js` for real engines without UI rewrite
-- **Mobile-first** — premium glass panels, glow, micro-animations
-- **No backend required** — pure static; ready for Cloudflare Pages
+```
+URL → Validate (SSRF-safe) → Secure Fetch → Evidence Extract
+    → Independent Scanners → Score → Report → Frontend
+```
 
-## Quick start
+Each scanner is isolated with its own timeout. One failure never kills the whole scan.
+
+## Real checks (current)
+
+| Scanner | What it inspects |
+|---------|------------------|
+| Title | Presence, length |
+| Meta | Description, Open Graph |
+| Headings | H1 count, structure |
+| Canonical | link rel=canonical |
+| Robots | /robots.txt fetch |
+| Sitemap | /sitemap.xml |
+| Images | Missing/empty alt |
+| Links | Internal vs external |
+| Viewport | Mobile meta |
+| HTTPS | Protocol + mixed content |
+| Headers | HSTS, CSP, X-CTO, XFO, RP |
+| HTTP | Status, timing |
+
+## Local development (VS Code / laptop)
 
 ```bash
-# Any static server
-npx serve .
-# or
-python3 -m http.server 8080
+cd vexdyn-xray
+npm install
+npm run dev
+# → http://localhost:8788
 ```
 
-Open `http://localhost:8080` (or the port shown).
+Requires Node 18+ and a Cloudflare account login for some Wrangler features (`npx wrangler login`).
 
-## Project structure
+### Manual API test
 
-```
-vexdyn-xray/
-├── index.html
-├── css/
-│   ├── main.css          # imports
-│   ├── variables.css     # design tokens
-│   ├── base.css
-│   ├── layout.css
-│   ├── scan.css          # viewport, beam, callouts
-│   ├── results.css
-│   └── responsive.css
-├── js/
-│   ├── app.js            # view orchestration
-│   ├── data/
-│   │   └── demo-scan.js  # structured demo payload
-│   ├── scanner/
-│   │   └── engine.js     # pluggable scan runner
-│   └── ui/
-│       ├── scan-view.js
-│       └── results-view.js
-└── README.md
+```bash
+curl -s -X POST http://localhost:8788/api/scan \
+  -H 'content-type: application/json' \
+  -d '{"url":"example.com"}' | jq .
 ```
 
-## Extending scanners
+### Security tests
 
-```js
-// js/scanner/engine.js
-import { registerEngine } from "./engine.js";
+```bash
+# Should reject
+curl -s -X POST http://localhost:8788/api/scan \
+  -H 'content-type: application/json' \
+  -d '{"url":"http://127.0.0.1"}' 
 
-registerEngine("lighthouse", async (url) => { /* … */ });
-registerEngine("security", async (url) => { /* … */ });
+curl -s -X POST http://localhost:8788/api/scan \
+  -H 'content-type: application/json' \
+  -d '{"url":"http://169.254.169.254"}'
 ```
 
-UI consumes a single report object (`createDemoReport` shape). Replace `runScan` internals when real APIs are ready.
+## Deploy (Cloudflare Pages)
 
-## Cloudflare Pages
+1. Connect the GitHub repo to Pages
+2. Build command: *(empty)*
+3. Output directory: `/`
+4. Functions are auto-detected from `/functions`
 
-1. Connect repo or upload the `vexdyn-xray` folder.
-2. Build command: *(none — static)*
-3. Output directory: `/` (or project root)
-4. Deploy.
+Or: `npm run deploy`
 
-Optional `_headers` / `_redirects` can be added later for caching and SPA fallbacks.
+## Project layout
 
-## Design DNA
+```
+functions/
+  api/scan.js              # POST /api/scan
+  lib/
+    validate.js            # URL + SSRF guards
+    fetch-secure.js        # timeouts, redirects, size limits
+    extract.js             # HTML evidence
+    score.js / report.js
+    rate-limit.js
+    scanners/              # independent modules
+js/scanner/engine.js       # client → /api/scan
+index.html + css/          # unchanged visual system
+```
 
-Preserved & upgraded from the original Claude X-Ray demo:
+## Not yet built
 
-- Graphite background (`#07080a`)
-- Cyan beam & glow (`#62E6FF`)
-- Scan grid + medical/X-ray atmosphere
-- Compact glass cards, animated score ring
-- Flow: **SCAN → REVEAL → DIAGNOSE → FIX → RE-SCAN**
+- Performance (Lighthouse / CWV)
+- Deep accessibility (axe rules)
+- Advanced security (dependency / TLS grade)
+- AI visibility
+- Design critique
+- Nyven / Forge integrations
+
+## License
+
+Private — VEXDYN

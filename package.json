@@ -1,0 +1,18 @@
+{
+  "name": "vexdyn-xray",
+  "version": "1.0.0",
+  "private": true,
+  "description": "VEXDYN X-Ray — real website diagnostic scanner (Cloudflare Pages + Functions)",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler pages dev . --port 8788",
+    "deploy": "wrangler pages deploy . --project-name vexdyn-xray",
+    "check": "node --check functions/api/scan.js"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

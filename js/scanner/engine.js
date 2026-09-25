@@ -1,12 +1,9 @@
 /**
- * X-Ray Scanner Engine (modular)
- * --------------------------------
- * Currently returns structured demo data.
- * Later: swap createDemoReport for real API / multi-engine pipeline
- * without touching the UI layer.
+ * X-Ray Scanner Engine — client orchestrator
+ * ------------------------------------------
+ * Calls the real /api/scan endpoint while driving the cinematic
+ * progress UI. No demo/fake findings — report comes from the server.
  */
-
-import { createDemoReport } from "../data/demo-scan.js";
 
 /**
  * @typedef {Object} ScanOptions
@@ -17,68 +14,87 @@ import { createDemoReport } from "../data/demo-scan.js";
  */
 
 /**
- * Run a full X-Ray scan.
- * Returns a Promise that resolves to the report object.
+ * Run a full X-Ray scan against the live API.
  */
 export async function runScan({ url, onProgress, onCallout, signal } = {}) {
-  const report = createDemoReport(url);
-  const phases = report.phases;
-  const callouts = report.scanCallouts;
+  const phases = [
+    { key: "scanning", label: "Scanning surface", weight: 0.35 },
+    { key: "analyzing", label: "Analyzing signals", weight: 0.4 },
+    { key: "revealing", label: "Revealing findings", weight: 0.25 },
+  ];
 
-  let totalMs = phases.reduce((s, p) => s + p.duration, 0);
-  // Slight buffer so progress hits 100 cleanly
-  totalMs += 200;
+  let phaseIndex = 0;
+  let progress = 0;
 
-  let elapsed = 0;
-  let calloutIndex = 0;
+  const tickProgress = () => {
+    const phase = phases[Math.min(phaseIndex, phases.length - 1)];
+    onProgress?.(phase.key, Math.min(92, Math.round(progress)));
+  };
 
-  for (const phase of phases) {
-    if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
-
-    onProgress?.(phase.key, Math.min(99, Math.round((elapsed / totalMs) * 100)));
-
-    const step = 50;
-    const steps = Math.ceil(phase.duration / step);
-
-    for (let i = 0; i < steps; i++) {
-      if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
-      await sleep(step);
-      elapsed += step;
-
-      // Fire callouts on approximate timing
-      while (
-        calloutIndex < callouts.length &&
-        callouts[calloutIndex].delay <= elapsed
-      ) {
-        onCallout?.(callouts[calloutIndex]);
-        calloutIndex++;
-      }
-
-      const pct = Math.min(99, Math.round((elapsed / totalMs) * 100));
-      onProgress?.(phase.key, pct);
+  // Soft progress while network request runs
+  const progressTimer = setInterval(() => {
+    if (progress < 88) {
+      progress += progress < 40 ? 2.5 : progress < 70 ? 1.5 : 0.6;
+      if (progress > 35 && phaseIndex < 1) phaseIndex = 1;
+      if (progress > 65 && phaseIndex < 2) phaseIndex = 2;
+      tickProgress();
     }
+  }, 120);
+
+  try {
+    onProgress?.("scanning", 5);
+
+    const res = await fetch("/api/scan", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+      signal,
+    });
+
+    clearInterval(progressTimer);
+
+    let data;
+    try {
+      data = await res.json();
+    } catch {
+      throw new Error("Invalid response from scanner");
+    }
+
+    if (!res.ok) {
+      const msg = data?.error || `Scan failed (${res.status})`;
+      const err = new Error(msg);
+      err.code = data?.code;
+      err.status = res.status;
+      throw err;
+    }
+
+    // Drive callouts from real findings
+    const callouts = data.scanCallouts || [];
+    for (const c of callouts) {
+      onCallout?.(c);
+      await sleep(180);
+    }
+
+    onProgress?.("revealing", 96);
+    await sleep(200);
+    onProgress?.("complete", 100);
+    await sleep(200);
+
+    // Ensure phases array exists for any UI that reads it
+    if (!data.phases) data.phases = phases.map((p) => ({ ...p, duration: 1000 }));
+
+    return data;
+  } catch (err) {
+    clearInterval(progressTimer);
+    throw err;
   }
-
-  // Flush remaining callouts
-  while (calloutIndex < callouts.length) {
-    onCallout?.(callouts[calloutIndex]);
-    calloutIndex++;
-  }
-
-  onProgress?.("complete", 100);
-  await sleep(280);
-
-  return report;
 }
 
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-/**
- * Future extension point:
- * registerEngine(name, fn) → multi-engine aggregation
- */
+/** Extension point for additional client-side engines */
 const engines = new Map();
 
 export function registerEngine(name, fn) {
