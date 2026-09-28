@@ -1,10 +1,16 @@
 /**
  * POST /api/scan
  * Body: { "url": "example.com" }
- * Returns structured X-Ray report from real website evidence.
+ * Returns structured X-Ray report from real website evidence,
+ * or a structured error (never a fake score).
  */
 
-import { normalizeUrl, displayHost, ValidationError } from "../lib/validate.js";
+import {
+  normalizeUrl,
+  displayHost,
+  ValidationError,
+  ScanError,
+} from "../lib/validate.js";
 import { secureFetch } from "../lib/fetch-secure.js";
 import { extractEvidence } from "../lib/extract.js";
 import { runAllScanners } from "../lib/scanners/index.js";
@@ -41,7 +47,10 @@ export async function onRequestPost(context) {
   try {
     body = await context.request.json();
   } catch {
-    return json({ error: "Expected JSON body with a url field", code: "BAD_BODY" }, 400);
+    return json(
+      { error: "Expected JSON body with a url field", code: "BAD_BODY" },
+      400
+    );
   }
 
   const rawUrl = body?.url;
@@ -49,15 +58,27 @@ export async function onRequestPost(context) {
   try {
     url = normalizeUrl(rawUrl);
   } catch (err) {
-    const status = err.status || 400;
     return json(
-      { error: err.message || "Invalid URL", code: err.code || "INVALID_URL" },
-      status
+      {
+        error: err.message || "Invalid URL",
+        code: err.code || "INVALID_URL",
+      },
+      err.status || 400
     );
   }
 
   try {
     const fetched = await secureFetch(url);
+
+    // Only score successful HTML fetches (secureFetch already enforces this)
+    if (!fetched || fetched.status < 200 || fetched.status >= 300) {
+      throw new ScanError(
+        `This page returned ${fetched?.status ?? "an error"}. X-Ray only scores successful pages.`,
+        `HTTP_${fetched?.status || "ERROR"}`,
+        422
+      );
+    }
+
     const evidence = await extractEvidence(fetched.body, {
       finalUrl: fetched.finalUrl,
       status: fetched.status,
@@ -73,22 +94,21 @@ export async function onRequestPost(context) {
 
     return json(report, 200);
   } catch (err) {
-    if (err instanceof ValidationError || err.code) {
+    if (err instanceof ValidationError || err instanceof ScanError || err.code) {
       return json(
         {
           error: err.message || "Scan rejected",
           code: err.code || "SCAN_REJECTED",
-          url: displayHost(url),
+          url: url ? displayHost(url) : undefined,
         },
-        err.status || 400
+        err.status || 422
       );
     }
     console.error("scan error", err);
     return json(
       {
-        error: "Scan failed due to an unexpected error",
+        error: "We could not complete this scan. Please try again.",
         code: "INTERNAL",
-        detail: String(err.message || err),
       },
       500
     );

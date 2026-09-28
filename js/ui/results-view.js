@@ -37,13 +37,16 @@ export function createResultsView(root) {
 
     if (categoriesEl) {
       categoriesEl.innerHTML = (report.categories || [])
-        .map(
-          (c) => `
-        <div class="score-cat">
-          <div class="cat-score ${c.level}">${c.score}</div>
-          <div class="cat-name">${escapeHtml(c.name)}</div>
-        </div>`
-        )
+        .map((c) => {
+          const notChecked = c.notChecked || c.score == null;
+          const scoreLabel = notChecked ? "—" : c.score;
+          const level = notChecked ? "muted" : c.level;
+          return `
+        <div class="score-cat${notChecked ? " not-checked" : ""}">
+          <div class="cat-score ${level}">${scoreLabel}</div>
+          <div class="cat-name">${escapeHtml(c.name)}${notChecked ? " · n/a" : ""}</div>
+        </div>`;
+        })
         .join("");
     }
 

@@ -98,6 +98,23 @@
   margin: 0 0 36px;
 }
 
+.url-error {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--danger, #ff5f5f);
+  text-align: left;
+  line-height: 1.35;
+}
+
+.url-error.hidden {
+  display: none;
+}
+
+.scan-card .url-bar input.has-error {
+  border-color: rgba(255, 95, 95, 0.55);
+  box-shadow: 0 0 0 3px rgba(255, 95, 95, 0.12);
+}
+
 /* Section labels */
 .section-label {
   font-size: 11px;

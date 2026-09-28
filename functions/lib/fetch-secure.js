@@ -1,32 +1,36 @@
 /**
  * Secure page fetcher — timeouts, size limits, redirect re-validation.
+ * Failed fetches throw ScanError / ValidationError — never return a soft body.
  */
 
-import { assertSafeUrl, ValidationError } from "./validate.js";
+import { assertSafeUrl, ValidationError, ScanError } from "./validate.js";
 
 const DEFAULTS = {
   timeoutMs: 10000,
   maxRedirects: 5,
-  maxBytes: 1_500_000, // ~1.5 MB HTML cap
+  maxBytes: 1_500_000,
   userAgent:
     "VEXDYN-XRay/1.0 (+https://vexdyn.com; security research scanner; contact: scan@vexdyn.com)",
 };
 
-/**
- * @typedef {Object} FetchResult
- * @property {string} finalUrl
- * @property {number} status
- * @property {string} statusText
- * @property {Record<string,string>} headers
- * @property {string} body
- * @property {number} elapsedMs
- * @property {string[]} redirectChain
- * @property {boolean} truncated
- */
+const NON_HTML_TYPES = [
+  "application/pdf",
+  "application/zip",
+  "application/gzip",
+  "application/octet-stream",
+  "application/json",
+  "application/xml",
+  "text/xml",
+  "text/plain",
+  "image/",
+  "video/",
+  "audio/",
+  "font/",
+];
 
 /**
  * Fetch a URL with SSRF-safe redirect following and response limits.
- * @returns {Promise<FetchResult>}
+ * @returns {Promise<object>}
  */
 export async function secureFetch(startUrl, options = {}) {
   const opts = { ...DEFAULTS, ...options };
@@ -53,7 +57,6 @@ export async function secureFetch(startUrl, options = {}) {
           "Accept-Language": "en-US,en;q=0.9",
         },
         cf: {
-          // Prefer not to cache scan targets through CF edge
           cacheTtl: 0,
           cacheEverything: false,
         },
@@ -61,9 +64,39 @@ export async function secureFetch(startUrl, options = {}) {
     } catch (err) {
       clearTimeout(timer);
       if (err.name === "AbortError") {
-        throw new ValidationError("Request timed out", "TIMEOUT");
+        throw new ScanError(
+          "This website took too long to respond. Try again later.",
+          "TIMEOUT",
+          504
+        );
       }
-      throw new ValidationError(`Failed to reach host: ${err.message}`, "FETCH_FAILED");
+      const msg = String(err.message || err);
+      if (/ENOTFOUND|getaddrinfo|Name not resolved|DNS/i.test(msg)) {
+        throw new ScanError(
+          "We could not find this website. Check the address and try again.",
+          "DNS_FAILED",
+          422
+        );
+      }
+      if (/ECONNREFUSED|connection refused/i.test(msg)) {
+        throw new ScanError(
+          "Connection refused by the server.",
+          "CONNECTION_REFUSED",
+          422
+        );
+      }
+      if (/CERT|SSL|TLS|certificate/i.test(msg)) {
+        throw new ScanError(
+          "Secure connection (TLS) to this site failed.",
+          "TLS_ERROR",
+          422
+        );
+      }
+      throw new ScanError(
+        "We could not reach this website. It may be offline or the address may be wrong.",
+        "FETCH_FAILED",
+        422
+      );
     } finally {
       clearTimeout(timer);
     }
@@ -72,22 +105,72 @@ export async function secureFetch(startUrl, options = {}) {
     if ([301, 302, 303, 307, 308].includes(response.status)) {
       const loc = response.headers.get("location");
       if (!loc) {
-        throw new ValidationError("Redirect without Location header", "BAD_REDIRECT");
+        throw new ScanError(
+          "The site returned a redirect without a destination.",
+          "BAD_REDIRECT",
+          422
+        );
       }
       redirects += 1;
       if (redirects > opts.maxRedirects) {
-        throw new ValidationError("Too many redirects", "TOO_MANY_REDIRECTS");
+        throw new ScanError(
+          "Too many redirects — stopped for safety.",
+          "TOO_MANY_REDIRECTS",
+          422
+        );
       }
       let next;
       try {
         next = new URL(loc, current);
       } catch {
-        throw new ValidationError("Invalid redirect location", "BAD_REDIRECT");
+        throw new ScanError("Invalid redirect location.", "BAD_REDIRECT", 422);
       }
-      assertSafeUrl(next); // re-validate every hop
+      assertSafeUrl(next);
       redirectChain.push(next.toString());
       current = next;
       continue;
+    }
+
+    const status = response.status;
+
+    // Blocked / auth — do not score
+    if (status === 401) {
+      throw new ScanError(
+        "This site requires a login (401). X-Ray cannot scan private pages.",
+        "HTTP_401",
+        422
+      );
+    }
+    if (status === 403) {
+      throw new ScanError(
+        "This site blocked the scanner (403). It cannot be scored.",
+        "HTTP_403",
+        422
+      );
+    }
+    if (status === 429) {
+      throw new ScanError(
+        "This site rate-limited the scanner (429). Try again later.",
+        "HTTP_429",
+        422
+      );
+    }
+
+    // Any other 4xx / 5xx — error, no report
+    if (status >= 400) {
+      throw new ScanError(
+        `This page returned ${status}. X-Ray only scores successful pages.`,
+        `HTTP_${status}`,
+        422
+      );
+    }
+
+    if (status < 200 || status >= 300) {
+      throw new ScanError(
+        `Unexpected HTTP status ${status}.`,
+        `HTTP_${status}`,
+        422
+      );
     }
 
     const headers = {};
@@ -96,23 +179,29 @@ export async function secureFetch(startUrl, options = {}) {
     });
 
     const contentType = (headers["content-type"] || "").toLowerCase();
-    // Allow HTML and XHTML; soft-allow unknown (some servers mislabel)
-    if (
-      contentType &&
-      !contentType.includes("text/html") &&
-      !contentType.includes("application/xhtml") &&
-      !contentType.includes("text/plain") &&
-      !contentType.includes("application/octet-stream")
-    ) {
-      // Still read a bit — some sites serve HTML as application/json mistakenly
+    if (contentType && isClearlyNonHtml(contentType)) {
+      throw new ScanError(
+        "This URL does not return a web page (non-HTML response). X-Ray only scans HTML pages.",
+        "NOT_HTML",
+        422
+      );
     }
 
     const { text, truncated } = await readLimited(response, opts.maxBytes);
     const elapsedMs = Date.now() - started;
 
+    // Sniff: must look like HTML if type was empty/ambiguous
+    if (!looksLikeHtml(text, contentType)) {
+      throw new ScanError(
+        "This URL does not return a web page (non-HTML response). X-Ray only scans HTML pages.",
+        "NOT_HTML",
+        422
+      );
+    }
+
     return {
       finalUrl: current.toString(),
-      status: response.status,
+      status,
       statusText: response.statusText,
       headers,
       body: text,
@@ -123,8 +212,30 @@ export async function secureFetch(startUrl, options = {}) {
   }
 }
 
+function isClearlyNonHtml(contentType) {
+  const ct = contentType.split(";")[0].trim();
+  if (ct === "text/html" || ct === "application/xhtml+xml") return false;
+  for (const prefix of NON_HTML_TYPES) {
+    if (ct === prefix || ct.startsWith(prefix)) return true;
+  }
+  return false;
+}
+
+function looksLikeHtml(body, contentType) {
+  if (contentType && (contentType.includes("text/html") || contentType.includes("xhtml"))) {
+    return true;
+  }
+  const sample = (body || "").slice(0, 2048).toLowerCase();
+  return (
+    sample.includes("<html") ||
+    sample.includes("<!doctype html") ||
+    sample.includes("<head") ||
+    sample.includes("<body") ||
+    sample.includes("<title")
+  );
+}
+
 async function readLimited(response, maxBytes) {
-  // Prefer streaming when body is available
   if (!response.body || typeof response.body.getReader !== "function") {
     const buf = await response.arrayBuffer();
     const slice = buf.byteLength > maxBytes ? buf.slice(0, maxBytes) : buf;
