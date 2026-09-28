@@ -25,6 +25,7 @@ function init() {
   const scanAgainBtn = $("[data-scan-again]");
   const shareBtn = $("[data-share]");
   const toast = $("[data-toast]");
+  const urlError = $("[data-url-error]");
 
   const scanView = createScanView(app);
   const resultsView = createResultsView(app);
@@ -47,65 +48,27 @@ function init() {
     if (urlInput) urlInput.disabled = busy;
   }
 
-  /** Typing placeholder cycle — matches landing reference */
-  function startPlaceholderTyping() {
-    if (!urlInput) return;
-    const examples = [
-      "yourbusiness.com",
-      "yourstartup.io",
-      "yourstore.com",
-      "yourportfolio.dev",
-    ];
-    let exIndex = 0;
-    let charIndex = 0;
-    let deleting = false;
-    let timer = null;
-    let stopped = false;
-
-    function stop() {
-      stopped = true;
-      if (timer) clearTimeout(timer);
+  function setUrlError(show) {
+    if (!urlError) return;
+    urlError.classList.toggle("hidden", !show);
+    if (urlInput) {
+      urlInput.classList.toggle("has-error", !!show);
+      urlInput.setAttribute("aria-invalid", show ? "true" : "false");
     }
-
-    function tick() {
-      if (stopped) return;
-      // Pause animation while user has typed or focused with content
-      if (document.activeElement === urlInput && urlInput.value.length > 0) {
-        timer = setTimeout(tick, 400);
-        return;
-      }
-      if (urlInput.value.length > 0) {
-        timer = setTimeout(tick, 400);
-        return;
-      }
-
-      const word = examples[exIndex];
-      if (!deleting) {
-        charIndex++;
-        urlInput.placeholder = word.slice(0, charIndex);
-        if (charIndex === word.length) {
-          deleting = true;
-          timer = setTimeout(tick, 1400);
-          return;
-        }
-      } else {
-        charIndex--;
-        urlInput.placeholder = word.slice(0, charIndex);
-        if (charIndex === 0) {
-          deleting = false;
-          exIndex = (exIndex + 1) % examples.length;
-        }
-      }
-      timer = setTimeout(tick, deleting ? 40 : 80);
-    }
-
-    tick();
-    return stop;
   }
 
+  // Typing placeholder lives only in index.html inline script (single instance).
+  // Do not start a second loop here — that caused stutter / overlapping timers.
+
   async function startScan() {
-    const url = (urlInput?.value || "yourbusiness.com").trim();
-    if (!url) return;
+    // Never use placeholder text — only the real input value
+    const url = (urlInput?.value ?? "").trim();
+    if (!url) {
+      setUrlError(true);
+      urlInput?.focus();
+      return;
+    }
+    setUrlError(false);
 
     abortController?.abort();
     abortController = new AbortController();
@@ -201,13 +164,13 @@ function init() {
   urlInput?.addEventListener("keydown", (e) => {
     if (e.key === "Enter") startScan();
   });
+  urlInput?.addEventListener("input", () => setUrlError(false));
   scanAgainBtn?.addEventListener("click", scanAgain);
   shareBtn?.addEventListener("click", shareReport);
 
   // Initial
   showView("idle");
   scanView.reset();
-  startPlaceholderTyping();
 }
 
 function sleep(ms) {
