@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="css/landing.css" />
   <link rel="stylesheet" href="css/scan.css" />
   <link rel="stylesheet" href="css/results.css" />
+  <link rel="stylesheet" href="css/history.css" />
   <link rel="stylesheet" href="css/responsive.css" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2362e6ff'/%3E%3Cpath d='M8 16h4l3-8 4 16 3-8h4' stroke='%2304202a' stroke-width='2.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
 </head>
@@ -32,7 +33,23 @@
             <span class="brand-tag">X-Ray</span>
           </div>
         </div>
-        <div class="header-pill">Beta</div>
+        <div class="header-actions">
+          <button
+            type="button"
+            class="history-open-btn"
+            data-history-open
+            aria-label="Open scan history"
+            aria-expanded="false"
+            aria-controls="history-panel"
+            hidden
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="9"/>
+              <path d="M12 7v5l3 2"/>
+            </svg>
+          </button>
+          <div class="header-pill">Beta</div>
+        </div>
       </div>
     </header>
 
@@ -183,6 +200,7 @@
 
       <!-- ========== RESULTS ========== -->
       <section class="view" data-view="results" aria-label="X-Ray report">
+        <div class="saved-banner" data-saved-banner role="status"></div>
         <div class="results-header">
           <div class="results-brand">VEXDYN X-RAY REPORT</div>
           <div class="score-wrap">
@@ -209,12 +227,18 @@
         </div>
 
         <div class="results-actions">
+          <button type="button" class="btn btn-secondary" data-results-back>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+            Back
+          </button>
           <button type="button" class="btn btn-secondary" data-scan-again>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M1 4v6h6M23 20v-6h-6"/>
               <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/>
             </svg>
-            Scan again
+            <span data-rescan-label>Scan again</span>
           </button>
           <button type="button" class="btn btn-primary" data-share>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -227,6 +251,49 @@
       </section>
     </main>
   </div>
+
+  <!-- History drawer -->
+  <div class="history-backdrop" data-history-backdrop></div>
+  <aside
+    id="history-panel"
+    class="history-panel"
+    data-history-panel
+    aria-hidden="true"
+    aria-label="Scan history"
+  >
+    <div class="history-panel-header">
+      <div class="history-panel-title">Scan history</div>
+      <button type="button" class="history-close-btn" data-history-close aria-label="Close history">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="history-search-wrap">
+      <input
+        type="search"
+        class="history-search"
+        data-history-search
+        placeholder="Search by website…"
+        aria-label="Search history by website"
+        autocomplete="off"
+      />
+    </div>
+    <div class="history-list" data-history-list></div>
+    <div class="history-empty" data-history-empty hidden>
+      <strong>No scans yet</strong>
+      Run a scan to start building history on this device.
+    </div>
+    <div class="history-footer">
+      <p class="history-device-note">History is saved on this device only.</p>
+      <button type="button" class="history-clear-btn" data-history-clear>Clear all history</button>
+      <div class="history-confirm" data-history-confirm hidden>
+        <p>Delete all saved scans on this device?</p>
+        <div class="history-confirm-actions">
+          <button type="button" data-history-confirm-no>Cancel</button>
+          <button type="button" class="danger" data-history-confirm-yes>Clear all</button>
+        </div>
+      </div>
+    </div>
+  </aside>
 
   <div class="toast" data-toast role="status" aria-live="polite"></div>
 
