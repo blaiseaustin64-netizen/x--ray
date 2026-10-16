@@ -1,0 +1,184 @@
+/* ==========================================================================
+   Pro results layout. Loaded after results.css; scoped to the results view.
+   The scan animation (scan.css) is not touched.
+   ========================================================================== */
+
+/* Widen the shell only while results are showing (graceful fallback: stays narrow) */
+#app:has([data-view="results"].active) .header-inner,
+#app:has([data-view="results"].active) .main {
+  max-width: 1180px;
+}
+
+/* ---------- Hero ---------- */
+.rp-hero {
+  display: grid;
+  grid-template-columns: 1fr;
+  justify-items: center;
+  gap: 22px;
+  padding: 24px 20px;
+  margin-bottom: 14px;
+  text-align: center;
+}
+
+.rp-hero .score-wrap { width: 168px; height: 168px; margin: 0; }
+.rp-hero .score-num { font-size: 50px; }
+
+.rp-hero .results-brand { margin-bottom: 6px; }
+
+.rp-host {
+  font-size: 26px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin: 0 0 10px;
+  overflow-wrap: anywhere;
+}
+
+.rp-hero .score-verdict {
+  display: inline-block;
+  margin: 0 0 12px;
+  padding: 4px 12px;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+}
+
+.rp-hero .roast { max-width: 640px; margin: 0 auto 14px; font-size: 15px; }
+.rp-hero .tags { margin-bottom: 18px; }
+
+.rp-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+.rp-actions .btn { flex: 0 0 auto; min-height: 44px; padding: 12px 18px; }
+
+@media (min-width: 900px) {
+  .rp-hero {
+    grid-template-columns: auto minmax(0, 1fr);
+    justify-items: start;
+    gap: 36px;
+    padding: 32px;
+    text-align: left;
+  }
+  .rp-hero .score-wrap { width: 196px; height: 196px; }
+  .rp-hero .score-num { font-size: 58px; }
+  .rp-host { font-size: 32px; }
+  .rp-hero .roast { margin-left: 0; text-align: left; }
+  .rp-hero .tags { justify-content: flex-start; }
+  .rp-actions { justify-content: flex-start; }
+}
+
+/* ---------- Category tiles ---------- */
+.categories { margin-bottom: 24px; }
+.score-cat { padding: 16px 14px; text-align: left; }
+.cat-score { font-size: 28px; margin-bottom: 4px; }
+.cat-score.muted { color: var(--muted); }
+.cat-name { font-size: 11px; }
+.score-cat.not-checked { border-style: dashed; }
+
+.cat-bar {
+  height: 5px;
+  margin-top: 12px;
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+.cat-bar > span {
+  display: block;
+  height: 100%;
+  width: var(--w, 0%);
+  background: var(--bar, var(--scan));
+  border-radius: inherit;
+}
+
+@media (min-width: 900px) {
+  .categories { grid-template-columns: repeat(6, 1fr); gap: 12px; }
+}
+
+/* ---------- Two-column body ---------- */
+.rp-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; align-items: start; }
+@media (min-width: 900px) {
+  .rp-grid { grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr); }
+}
+
+.rp-filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.rp-filter {
+  min-height: 44px;
+  padding: 9px 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  transition: background var(--duration-fast), color var(--duration-fast), border-color var(--duration-fast);
+}
+.rp-filter:hover { border-color: var(--border-cyan); }
+.rp-filter[aria-pressed="true"] {
+  background: var(--scan);
+  border-color: var(--scan);
+  color: #04202a;
+  font-weight: 650;
+}
+
+/* Findings refinements */
+.finding-header { min-height: 44px; align-items: center; }
+.finding-severity { margin-top: 0; }
+.finding-title { font-size: 14.5px; }
+.finding-body { padding-left: 34px; }
+.finding-evidence { margin-bottom: 12px; }
+.finding-code {
+  margin: 4px 0 0;
+  padding: 10px 12px;
+  background: #05070a;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.55;
+  color: #9fe9ff;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Sidebar cards ---------- */
+.rp-card { padding: 20px; margin-bottom: 14px; }
+.rp-card h2 {
+  margin: 0 0 12px;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--scan);
+}
+.rp-card.is-dashed { border-style: dashed; }
+.rp-card.is-dashed h2 { color: var(--muted); }
+
+.rp-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; counter-reset: fix; }
+.rp-list li { display: flex; gap: 12px; font-size: 13.5px; line-height: 1.45; counter-increment: fix; }
+.rp-list li::before { content: counter(fix); font-family: var(--font-mono); color: var(--scan); }
+.rp-list li span { flex: 1; }
+.rp-list li em { font-style: normal; font-size: 11px; color: var(--muted); }
+
+.rp-muted { margin: 0; font-size: 13px; line-height: 1.6; color: var(--muted); }
+
+.rp-dl { margin: 0; display: grid; gap: 8px; font-family: var(--font-mono); font-size: 12px; }
+.rp-dl div { display: flex; justify-content: space-between; gap: 12px; }
+.rp-dl dt { color: var(--muted); }
+.rp-dl dd { margin: 0; color: var(--text); text-align: right; overflow-wrap: anywhere; }
+
+.rp-todo { margin: 0; padding-left: 18px; font-size: 13.5px; line-height: 1.9; color: var(--text-secondary); }
+
+/* ---------- Print / Export PDF ---------- */
+@media print {
+  :root {
+    --bg: #fff; --bg-elevated: #fff; --panel: #fff; --panel-glass: #fff; --panel-glass-strong: #fff;
+    --text: #111; --text-secondary: #333; --muted: #555;
+    --border: #ccc; --border-strong: #bbb; --border-cyan: #999;
+    --scan: #0a7f99; --danger: #c62828; --warn: #b26a00; --good: #1b7f4b; --info: #3055c9;
+  }
+  body, #app { background: #fff !important; color: #111 !important; }
+  .app-header, .rp-actions, .rp-filters, .toast, .history-panel, .history-backdrop, .saved-banner { display: none !important; }
+  #app:has([data-view="results"].active) .main { max-width: none; }
+  .glass, .finding, .score-cat { backdrop-filter: none !important; box-shadow: none !important; }
+  .finding-body { display: block !important; }
+  .finding, .rp-card { break-inside: avoid; }
+  .score-ring::before { background: #fff; box-shadow: none; }
+  .finding-code { background: #f4f6f8; color: #0a4a5a; }
+}

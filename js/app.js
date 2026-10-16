@@ -17,6 +17,8 @@ import {
   relativeTime,
   formatFullDate,
 } from "./ui/history-panel.js";
+import { createHistoryDashboard } from "./ui/history-chart.js";
+import { recordRemote } from "./history/provider.js";
 
 const $ = (sel, ctx = document) => ctx.querySelector(sel);
 
@@ -49,6 +51,9 @@ function init() {
   let resultsMode = null;
   let viewingEntry = null;
 
+  const historyDash = createHistoryDashboard(document, {
+    onOpenEntry: (entry) => openSavedEntry(entry),
+  });
   const historyPanel = createHistoryPanel(document, {
     onOpenEntry: (entry) => openSavedEntry(entry),
   });
@@ -184,10 +189,12 @@ function init() {
       if (isHistoryAvailable()) {
         try {
           await saveScan(report);
+          recordRemote(report);
           if (prevScores.length >= 1 && typeof report.overallScore === "number") {
             scoreDelta = report.overallScore - prevScores[0];
           }
           historyPanel.refresh?.();
+          historyDash.refresh?.();
         } catch {
           /* storage must never break scanning */
         }
@@ -284,7 +291,7 @@ function init() {
     toast.textContent = msg;
     toast.classList.add("show");
     clearTimeout(showToast._t);
-    showToast._t = setTimeout(() => toast.classList.remove("show"), 2400);
+    showToast._t = setTimeout(() => toast.classList.remove("show"), Math.max(2400, msg.length * 55));
   }
 
   // Events
@@ -305,6 +312,7 @@ function init() {
     .then(() => {
       historyPanel.setVisible(isHistoryAvailable());
       if (isHistoryAvailable()) historyPanel.refresh();
+      historyDash.refresh();
     })
     .catch(() => {
       historyPanel.setVisible(false);

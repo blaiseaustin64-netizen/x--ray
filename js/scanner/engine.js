@@ -5,6 +5,8 @@
  * progress UI. No demo/fake findings — report comes from the server.
  */
 
+import { CONFIG } from "../config.js";
+
 /**
  * @typedef {Object} ScanOptions
  * @property {string} url
@@ -44,9 +46,13 @@ export async function runScan({ url, onProgress, onCallout, signal } = {}) {
   try {
     onProgress?.("scanning", 5);
 
-    const res = await fetch("/api/scan", {
+    const token = CONFIG.getAuthToken?.();
+    const res = await fetch(`${CONFIG.apiBase}/api/scan`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify({ url }),
       signal,
     });

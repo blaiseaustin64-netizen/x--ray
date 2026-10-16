@@ -254,6 +254,19 @@
   letter-spacing: 0.04em;
 }
 
+.badge-soon {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--muted);
+  border: 1px solid var(--border-strong);
+  padding: 2px 7px;
+  border-radius: 20px;
+  margin-left: 6px;
+  vertical-align: middle;
+  letter-spacing: 0.04em;
+}
+
 /* Header BETA pill */
 .header-pill {
   font-size: 10px;

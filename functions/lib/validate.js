@@ -34,11 +34,16 @@ const PRIVATE_V4 = [
 ];
 
 const PRIVATE_V6 = [
+  /^::$/,
   /^::1$/,
-  /^fc/i,
-  /^fd/i,
-  /^fe80/i,
-  /^::ffff:(10\.|127\.|169\.254\.|172\.(1[6-9]|2\d|3[0-1])\.|192\.168\.)/i,
+  /^f[cd]/i, // fc00::/7 unique local
+  /^fe[89ab]/i, // fe80::/10 link-local
+  /^fec/i, // deprecated site-local
+  /^ff/i, // multicast
+  /^64:ff9b:/i, // NAT64 (can embed private IPv4)
+  /^2002:/i, // 6to4 (embeds IPv4)
+  /^2001:0?db8:/i, // documentation
+  /^100::/i, // discard-only
 ];
 
 /** Common multi-part public suffixes (hostname must still have a label before these) */
@@ -147,7 +152,10 @@ export function assertSafeUrl(urlOrString) {
 }
 
 function assertSafeHostname(hostname) {
-  const host = (hostname || "").toLowerCase().replace(/\.$/, "");
+  const host = (hostname || "")
+    .toLowerCase()
+    .replace(/^\[|\]$/g, "")
+    .replace(/\.$/, "");
   if (!host) throw new ValidationError("Empty hostname", "SSRF");
 
   if (host.length > 253) {
@@ -180,11 +188,7 @@ function assertSafeHostname(hostname) {
   }
 
   if (host.includes(":")) {
-    for (const re of PRIVATE_V6) {
-      if (re.test(host)) {
-        throw new ValidationError("Private IPv6 addresses are blocked", "SSRF");
-      }
-    }
+    assertPublicIpv6(host);
   }
 
   if (/^0x[0-9a-f]+$/i.test(host) || /^\d{8,}$/.test(host)) {
@@ -197,7 +201,10 @@ function assertSafeHostname(hostname) {
  * Does not append .com to bare words.
  */
 function assertPlausiblePublicHost(hostname) {
-  const host = (hostname || "").toLowerCase().replace(/\.$/, "");
+  const host = (hostname || "")
+    .toLowerCase()
+    .replace(/^\[|\]$/g, "")
+    .replace(/\.$/, "");
 
   // Public IPv4 is allowed if not private (already checked)
   if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) {
@@ -259,6 +266,49 @@ function assertPlausiblePublicHost(hostname) {
       "INVALID_URL"
     );
   }
+}
+
+/**
+ * Block private / reserved IPv6 literals, including IPv4-mapped forms.
+ * `host` has already had its brackets stripped.
+ */
+function assertPublicIpv6(host) {
+  for (const re of PRIVATE_V6) {
+    if (re.test(host)) {
+      throw new ValidationError("Private IPv6 addresses are blocked", "SSRF");
+    }
+  }
+
+  // IPv4-mapped / compatible: ::ffff:a.b.c.d or ::ffff:7f00:1 (URL normalises to hex)
+  const mapped = host.match(/^::(?:ffff:)?(?:(\d{1,3}(?:\.\d{1,3}){3})|([0-9a-f]{1,4}):([0-9a-f]{1,4}))$/i);
+  if (mapped) {
+    let v4 = mapped[1];
+    if (!v4) {
+      const hi = parseInt(mapped[2], 16);
+      const lo = parseInt(mapped[3], 16);
+      v4 = `${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`;
+    }
+    for (const re of PRIVATE_V4) {
+      if (re.test(v4)) {
+        throw new ValidationError("Private IPv6 addresses are blocked", "SSRF");
+      }
+    }
+  }
+}
+
+/** True if an IP literal (v4 or v6) is private, reserved or otherwise non-public. */
+export function isPrivateIp(ip) {
+  const s = String(ip || "").toLowerCase().replace(/^\[|\]$/g, "");
+  if (!s) return true;
+  if (s.includes(":")) {
+    try {
+      assertPublicIpv6(s);
+      return false;
+    } catch {
+      return true;
+    }
+  }
+  return PRIVATE_V4.some((re) => re.test(s));
 }
 
 export function displayHost(url) {

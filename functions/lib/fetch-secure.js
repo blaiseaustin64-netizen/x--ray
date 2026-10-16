@@ -4,6 +4,7 @@
  */
 
 import { assertSafeUrl, ValidationError, ScanError } from "./validate.js";
+import { assertResolvesToPublicHost } from "./dns.js";
 
 const DEFAULTS = {
   timeoutMs: 10000,
@@ -42,6 +43,9 @@ export async function secureFetch(startUrl, options = {}) {
   let redirects = 0;
 
   while (true) {
+    // Real DNS lookup: rejects fake domains and private addresses, on every hop.
+    await assertResolvesToPublicHost(current.hostname);
+
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), opts.timeoutMs);
 
@@ -235,7 +239,7 @@ function looksLikeHtml(body, contentType) {
   );
 }
 
-async function readLimited(response, maxBytes) {
+export async function readLimited(response, maxBytes) {
   if (!response.body || typeof response.body.getReader !== "function") {
     const buf = await response.arrayBuffer();
     const slice = buf.byteLength > maxBytes ? buf.slice(0, maxBytes) : buf;

@@ -6,9 +6,9 @@
 import { ScanError } from "./validate.js";
 
 const CATEGORY_META = [
-  { id: "performance", name: "Performance", key: "performance" },
+  { id: "performance", name: "Response time", key: "performance" },
   { id: "seo", name: "SEO", key: "seo" },
-  { id: "accessibility", name: "A11y", key: "accessibility" },
+  { id: "accessibility", name: "Accessibility", key: "accessibility" },
   { id: "mobile", name: "Mobile", key: "mobile" },
   { id: "security", name: "Security", key: "security" },
   { id: "design", name: "Design", key: "design" },
@@ -57,15 +57,7 @@ export function aggregateScores(scannerResults, opts = {}) {
     );
   }
 
-  // Design: only derive if we have real SEO or a11y evidence — never invent 60
-  if (buckets.design.length === 0) {
-    const seoAvg = avg(buckets.seo);
-    const a11yAvg = avg(buckets.accessibility);
-    if (seoAvg != null || a11yAvg != null) {
-      const parts = [seoAvg, a11yAvg].filter((n) => n != null);
-      buckets.design.push(Math.round(parts.reduce((a, b) => a + b, 0) / parts.length));
-    }
-  }
+  // Design is never derived from other scores: with no design scanner it stays "not checked".
 
   const categories = CATEGORY_META.map((c) => {
     const values = buckets[c.key];

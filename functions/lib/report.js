@@ -68,6 +68,7 @@ export function buildReport({ url, evidence, scannerResults }) {
       elapsedMs: evidence.elapsedMs,
       title: evidence.title,
       redirects: evidence.redirectChain?.length || 0,
+      htmlBytes: evidence.htmlBytes ?? null,
     },
     scanCallouts,
     phases: [
@@ -104,13 +105,13 @@ function buildSummary({ overallScore, verdict, findings, evidence, incomplete })
   const critical = findings.filter((f) => f.severity === "critical").length;
   const attention = findings.filter((f) => f.severity === "attention").length;
   const title = evidence.title
-    ? `"${escapeHtml(evidence.title.slice(0, 60))}${evidence.title.length > 60 ? "…" : ""}"`
+    ? `"${evidence.title.slice(0, 60)}${evidence.title.length > 60 ? "…" : ""}"`
     : "this page";
 
-  let line = `Scanned ${title} — score <strong>${overallScore}/100</strong> (${escapeHtml(verdict)}). `;
+  let line = `Scanned ${title} — score ${overallScore}/100 (${verdict}). `;
 
   if (critical > 0) {
-    line += `Found <strong>${critical} critical</strong> issue${critical > 1 ? "s" : ""}`;
+    line += `Found ${critical} critical issue${critical > 1 ? "s" : ""}`;
     if (attention) line += ` and ${attention} item${attention > 1 ? "s" : ""} needing attention`;
     line += ". ";
   } else if (attention > 0) {
@@ -159,12 +160,4 @@ function buildCallouts(findings, evidence) {
     push("HTTP", `Status ${evidence.status ?? "—"}`, "info");
   }
   return picks;
-}
-
-function escapeHtml(str) {
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
 }

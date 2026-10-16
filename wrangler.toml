@@ -4,3 +4,27 @@ pages_build_output_dir = "."
 
 # Pages Functions live in /functions
 # Local: npm run dev  →  http://localhost:8788
+
+# --- Optional but recommended for production -------------------------------
+# Shared rate limiting across all isolates (create with: npx wrangler kv namespace create RATE_KV)
+# [[kv_namespaces]]
+# binding = "RATE_KV"
+# id = "<your-kv-namespace-id>"
+#
+# Allow other sites to call /api/scan (comma-separated). Default: same-origin only.
+# [vars]
+# ALLOWED_ORIGINS = ""
+
+# --- Accounts + synced history (optional) -----------------------------------
+# D1 database for /api/history (see schema.sql):
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "xray-db"
+# database_id = "<your-d1-database-id>"
+#
+# Connect your accounts backend: set AUTH_VERIFY_URL (https only) in
+# Cloudflare Pages -> Settings -> Variables. It must return {"id","plan"} for a
+# valid "Authorization: Bearer <token>". See functions/lib/identity.js.
+#
+# Per-plan limits can be tuned with variables, e.g.
+#   RATE_ANON_PER_DAY=15  RATE_FREE_PER_DAY=60  RATE_PRO_PER_DAY=500

@@ -4,6 +4,9 @@
  * for robots.txt / sitemap.xml (non-HTML).
  */
 
+import { assertSafeUrl } from "./validate.js";
+import { readLimited } from "./fetch-secure.js";
+
 /**
  * @typedef {Object} PageEvidence
  * @property {string|null} title
@@ -250,25 +253,38 @@ function cleanText(s) {
 }
 
 /**
- * Fetch robots.txt / sitemap with short timeout (best-effort, non-HTML).
+ * Fetch robots.txt / sitemap with a short timeout (best-effort, non-HTML).
+ * Redirects are followed manually and every hop is re-validated (SSRF-safe),
+ * and the body is read with a hard byte cap.
  */
-export async function fetchTextResource(url, timeoutMs = 4000) {
+export async function fetchTextResource(url, timeoutMs = 4000, maxBytes = 200_000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(url, {
-      method: "GET",
-      redirect: "follow",
-      signal: controller.signal,
-      headers: {
-        "User-Agent":
-          "VEXDYN-XRay/1.0 (+https://vexdyn.com; security research scanner)",
-        Accept: "text/plain,text/xml,application/xml,*/*",
-      },
-    });
-    if (!res.ok) return { ok: false, status: res.status, body: null };
-    const text = await res.text();
-    return { ok: true, status: res.status, body: text.slice(0, 200_000) };
+    let current = new URL(url);
+    for (let hop = 0; hop <= 3; hop++) {
+      assertSafeUrl(current);
+      const res = await fetch(current.toString(), {
+        method: "GET",
+        redirect: "manual",
+        signal: controller.signal,
+        headers: {
+          "User-Agent":
+            "VEXDYN-XRay/1.0 (+https://vexdyn.com; security research scanner)",
+          Accept: "text/plain,text/xml,application/xml,*/*",
+        },
+      });
+      if ([301, 302, 303, 307, 308].includes(res.status)) {
+        const loc = res.headers.get("location");
+        if (!loc) return { ok: false, status: res.status, body: null };
+        current = new URL(loc, current);
+        continue;
+      }
+      if (!res.ok) return { ok: false, status: res.status, body: null };
+      const { text } = await readLimited(res, maxBytes);
+      return { ok: true, status: res.status, body: text };
+    }
+    return { ok: false, status: 0, body: null }; // too many redirects
   } catch {
     return { ok: false, status: 0, body: null };
   } finally {
