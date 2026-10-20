@@ -283,3 +283,37 @@
     font-size: 28px;
   }
 }
+
+/* Soften "Soon" labels — gray, low contrast, not shouty */
+.badge-soon {
+  display: inline-block;
+  font-size: 8px;
+  font-weight: 500;
+  color: rgba(160, 168, 180, 0.55);
+  border: 1px solid rgba(120, 130, 145, 0.22);
+  background: rgba(120, 130, 145, 0.06);
+  padding: 1px 6px;
+  border-radius: 20px;
+  margin-left: 6px;
+  vertical-align: middle;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+.hint-auth-link {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  opacity: 0.85;
+}
+.hint-auth-link:hover {
+  color: var(--text, #e8eef5);
+  opacity: 1;
+}

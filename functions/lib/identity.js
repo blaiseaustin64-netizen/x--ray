@@ -1,23 +1,18 @@
 /**
  * Who is making this request?
  *
- * - Anonymous visitors are identified by their Cloudflare-provided IP.
- * - Signed-in users are identified by whatever your account backend says.
+ * - Anonymous visitors: Cloudflare-provided IP (cf-connecting-ip).
+ * - Signed-in users: verified against the shared VEXDYN auth backend.
  *
- * HOW TO CONNECT YOUR ACCOUNTS BACKEND
- * ------------------------------------
- * Set AUTH_VERIFY_URL (Cloudflare Pages -> Settings -> Variables) to an
- * endpoint on your backend that accepts the user's session token and returns
- * the profile as JSON:
+ * AUTH_VERIFY_URL (Pages env, https only) should point at:
+ *   https://vexdyn-backend.blaisepatrick556.workers.dev/auth/me
  *
- *     GET <AUTH_VERIFY_URL>
- *     Authorization: Bearer <token the browser sent>
- *     -> 200 { "id": "user_123", "plan": "free" | "pro", "name": "...", "email": "..." }
- *     -> 401 (or anything non-200) when the token is invalid
+ * That endpoint expects Authorization: Bearer <session token> and returns:
+ *   { "ok": true, "user": { "id", "email", "emailVerified", "displayName", "createdAt" }, "memberships": [...] }
+ *   or 401 when the token is invalid.
  *
- * That is all X-Ray needs. Rate limits and server-side history then switch
- * from per-IP to per-user automatically. The browser attaches the token via
- * getAuthToken() in js/config.js.
+ * This module normalizes that shape into { id, plan, name } for rate limits and history.
+ * Browser-supplied user ids are never trusted — only the verified response is used.
  */
 
 const PLANS = new Set(["free", "pro"]);
@@ -27,6 +22,40 @@ const verified = new Map(); // tokenHash -> { until, user }
 async function sha256Hex(text) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/**
+ * Map shared-backend /auth/me JSON into X-Ray's internal user shape.
+ * Accepts both the VEXDYN Core shape and a minimal { id, plan, name } profile.
+ */
+function normalizeUser(data) {
+  if (!data || typeof data !== "object") return null;
+
+  // VEXDYN Core: { ok: true, user: { id, email, displayName, ... }, memberships? }
+  const profile = data.user && typeof data.user === "object" ? data.user : data;
+  if (typeof profile.id === "undefined" || profile.id === null) return null;
+
+  const memberships = Array.isArray(data.memberships) ? data.memberships : [];
+  const xrayMem = memberships.find(
+    (m) => m && String(m.product || "").toLowerCase() === "xray"
+  );
+  let plan = "free";
+  if (PLANS.has(profile.plan)) plan = profile.plan;
+  else if (xrayMem && (xrayMem.role === "owner" || xrayMem.role === "admin" || xrayMem.role === "pro")) {
+    plan = "pro";
+  }
+
+  const name =
+    profile.displayName ||
+    profile.name ||
+    (profile.email ? String(profile.email).split("@")[0] : null);
+
+  return {
+    id: String(profile.id).slice(0, 128),
+    plan,
+    name: name ? String(name).slice(0, 120) : null,
+    email: profile.email ? String(profile.email).slice(0, 254) : null,
+  };
 }
 
 async function verifyToken(token, env) {
@@ -41,17 +70,17 @@ async function verifyToken(token, env) {
   const timer = setTimeout(() => controller.abort(), 2500);
   try {
     const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/json",
+        "X-Session-Token": token,
+      },
       signal: controller.signal,
     });
     if (!res.ok) return null;
     const data = await res.json();
-    if (!data || typeof data.id === "undefined" || data.id === null) return null;
-    const user = {
-      id: String(data.id).slice(0, 128),
-      plan: PLANS.has(data.plan) ? data.plan : "free",
-      name: data.name ? String(data.name).slice(0, 120) : null,
-    };
+    const user = normalizeUser(data);
+    if (!user) return null;
     verified.set(hash, { until: Date.now() + VERIFY_CACHE_MS, user });
     if (verified.size > 2000) {
       const now = Date.now();
@@ -73,7 +102,12 @@ export async function resolveIdentity(request, env = {}) {
   const ip = request.headers.get("cf-connecting-ip") || "unknown";
 
   const auth = request.headers.get("authorization") || "";
-  const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
+  let token = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : "";
+  if (!token) {
+    const header = request.headers.get("x-session-token");
+    if (header?.trim()) token = header.trim();
+  }
+
   if (token && env.AUTH_VERIFY_URL) {
     const user = await verifyToken(token, env);
     if (user) return { type: "user", id: user.id, plan: user.plan, key: `u:${user.id}`, ip };

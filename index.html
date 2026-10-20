@@ -54,6 +54,14 @@
               <path d="M12 7v5l3 2"/>
             </svg>
           </button>
+          <button type="button" class="auth-header-btn" data-auth-open hidden>Sign in</button>
+          <button type="button" class="auth-avatar" data-auth-avatar hidden title="Account" aria-label="Account menu">
+            <span data-auth-initials>?</span>
+          </button>
+          <div class="auth-menu" data-auth-menu hidden>
+            <div class="auth-menu-email" data-auth-email></div>
+            <button type="button" class="auth-menu-item" data-auth-signout>Sign out</button>
+          </div>
           <div class="header-pill">Beta</div>
         </div>
       </div>
@@ -86,7 +94,7 @@
           </div>
           <p class="url-error hidden" data-url-error role="alert">Please enter a website URL to scan</p>
         </div>
-        <p class="hint">No account required · Free scan</p>
+        <p class="hint">No account required · Free scan · <button type="button" class="hint-auth-link" data-auth-open-hint>Sign in</button> for synced history</p>
 
         <section class="hist-dash" data-hist-dash hidden aria-label="Your scan history">
           <div class="hist-head">
@@ -153,7 +161,7 @@
               <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 0-4 4v1a3 3 0 0 0-2 5 3 3 0 0 0 2 5v1a4 4 0 0 0 8 0v-1a3 3 0 0 0 2-5 3 3 0 0 0-2-5V6a4 4 0 0 0-4-4Z"/><path d="M9 9h.01M15 9h.01M9 15h.01M15 15h.01"/></svg>
             </div>
             <div class="feature-text">
-              <div class="name">AI Visibility<span class="badge-soon">COMING SOON</span></div>
+              <div class="name">AI Visibility<span class="badge-soon" title="Coming soon">Soon</span></div>
               <div class="desc">Is your site easy for AI assistants to find and recommend?</div>
             </div>
           </div>
@@ -162,7 +170,7 @@
               <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
             </div>
             <div class="feature-text">
-              <div class="name">Design Critique<span class="badge-soon">COMING SOON</span></div>
+              <div class="name">Design Critique<span class="badge-soon" title="Coming soon">Soon</span></div>
               <div class="desc">An AI review of trust, clarity, and visual hierarchy.</div>
             </div>
           </div>
@@ -344,6 +352,50 @@
 
   <!-- Typing placeholder — single global instance; cleared before restart -->
   <script src="js/placeholder.js"></script>
-  <script type="module" src="js/app.js"></script>
+  
+    <!-- Auth panel -->
+    <div class="auth-backdrop" data-auth-backdrop hidden aria-hidden="true"></div>
+    <div class="auth-panel" data-auth-panel hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+      <div class="auth-panel-head">
+        <h2 id="auth-title" data-auth-title>Sign in</h2>
+        <button type="button" class="auth-close" data-auth-close aria-label="Close">×</button>
+      </div>
+      <p class="auth-msg" data-auth-msg hidden></p>
+
+      <form data-auth-form="signin" class="auth-form" novalidate>
+        <label class="auth-label" for="auth-si-email">Email</label>
+        <input id="auth-si-email" class="auth-input" name="email" type="email" autocomplete="email" required />
+        <label class="auth-label" for="auth-si-pass">Password</label>
+        <input id="auth-si-pass" class="auth-input" name="password" type="password" autocomplete="current-password" required />
+        <button type="submit" class="auth-submit">Sign in</button>
+        <p class="auth-switch-line">No account? <a href="#" data-auth-switch="signup">Create one</a></p>
+        <p class="auth-hint">Password reset is available on <a href="https://vexdyn.pages.dev/#signin" target="_blank" rel="noopener">vexdyn.pages.dev</a>.</p>
+      </form>
+
+      <form data-auth-form="signup" class="auth-form" hidden novalidate>
+        <label class="auth-label" for="auth-su-name">Display name (optional)</label>
+        <input id="auth-su-name" class="auth-input" name="displayName" type="text" autocomplete="name" />
+        <label class="auth-label" for="auth-su-email">Email</label>
+        <input id="auth-su-email" class="auth-input" name="email" type="email" autocomplete="email" required />
+        <label class="auth-label" for="auth-su-pass">Password</label>
+        <input id="auth-su-pass" class="auth-input" name="password" type="password" autocomplete="new-password" required />
+        <button type="submit" class="auth-submit">Create account</button>
+        <p class="auth-switch-line">Have an account? <a href="#" data-auth-switch="signin">Sign in</a></p>
+      </form>
+
+      <form data-auth-form="verify" class="auth-form" hidden novalidate>
+        <p class="auth-lead">Enter the 6-digit code sent to your email.</p>
+        <input type="hidden" name="email" value="" />
+        <label class="auth-label" for="auth-ve-code">Verification code</label>
+        <input id="auth-ve-code" class="auth-input" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required />
+        <button type="submit" class="auth-submit">Verify &amp; sign in</button>
+        <p class="auth-switch-line">
+          <button type="button" class="auth-text-btn" data-auth-resend>Resend code</button>
+          · <a href="#" data-auth-switch="signup">Change email</a>
+        </p>
+      </form>
+    </div>
+
+<script type="module" src="js/app.js"></script>
 </body>
 </html>

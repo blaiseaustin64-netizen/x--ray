@@ -19,6 +19,8 @@ import {
 } from "./ui/history-panel.js";
 import { createHistoryDashboard } from "./ui/history-chart.js";
 import { recordRemote } from "./history/provider.js";
+import { bootstrapAuth, logout as authLogout, getCachedUser } from "./auth.js";
+import { createAuthPanel } from "./ui/auth-panel.js";
 
 const $ = (sel, ctx = document) => ctx.querySelector(sel);
 
@@ -303,6 +305,77 @@ function init() {
   scanAgainBtn?.addEventListener("click", scanAgain);
   backBtn?.addEventListener("click", goBack);
   shareBtn?.addEventListener("click", shareReport);
+
+
+  // ---- Auth (VEXDYN Core) ----
+  const authOpenBtn = $("[data-auth-open]");
+  const authOpenHint = $("[data-auth-open-hint]");
+  const authAvatar = $("[data-auth-avatar]");
+  const authMenu = $("[data-auth-menu]");
+  const authEmailEl = $("[data-auth-email]");
+  const authInitials = $("[data-auth-initials]");
+  const authSignOut = $("[data-auth-signout]");
+
+  function initialsFromUser(user) {
+    if (!user) return "?";
+    const name = (user.displayName || user.email || "U").trim();
+    const parts = name.split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    return name.slice(0, 2).toUpperCase();
+  }
+
+  function renderAuthState(user) {
+    if (user) {
+      if (authOpenBtn) authOpenBtn.hidden = true;
+      if (authAvatar) {
+        authAvatar.hidden = false;
+        if (authInitials) authInitials.textContent = initialsFromUser(user);
+        authAvatar.title = user.email || "Account";
+      }
+      if (authEmailEl) authEmailEl.textContent = user.email || "";
+    } else {
+      if (authOpenBtn) authOpenBtn.hidden = false;
+      if (authAvatar) authAvatar.hidden = true;
+      if (authMenu) authMenu.hidden = true;
+    }
+  }
+
+  const authPanel = createAuthPanel(document, {
+    onAuthChange(user) {
+      renderAuthState(user);
+      historyDash.refresh?.();
+      historyPanel.refresh?.();
+      if (user) showToast("Signed in");
+    },
+  });
+
+  authOpenBtn?.addEventListener("click", () => authPanel.open("signin"));
+  authOpenHint?.addEventListener("click", () => authPanel.open("signin"));
+  authAvatar?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (!authMenu) return;
+    authMenu.hidden = !authMenu.hidden;
+  });
+  authSignOut?.addEventListener("click", async () => {
+    await authLogout();
+    renderAuthState(null);
+    if (authMenu) authMenu.hidden = true;
+    historyDash.refresh?.();
+    historyPanel.refresh?.();
+    showToast("Signed out");
+  });
+  document.addEventListener("click", (e) => {
+    if (!authMenu || authMenu.hidden) return;
+    if (e.target.closest("[data-auth-menu]") || e.target.closest("[data-auth-avatar]")) return;
+    authMenu.hidden = true;
+  });
+
+  // Optimistic cached user, then verify
+  renderAuthState(getCachedUser());
+  bootstrapAuth().then(({ user, error }) => {
+    renderAuthState(user);
+    if (error) showToast(error);
+  });
 
   // Initial
   showView("idle");
