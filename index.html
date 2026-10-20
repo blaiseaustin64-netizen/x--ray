@@ -54,7 +54,7 @@
               <path d="M12 7v5l3 2"/>
             </svg>
           </button>
-          <button type="button" class="auth-header-btn" data-auth-open hidden>Sign in</button>
+          <button type="button" class="auth-header-btn" data-auth-open hidden>Account</button>
           <button type="button" class="auth-avatar" data-auth-avatar hidden title="Account" aria-label="Account menu">
             <span data-auth-initials>?</span>
           </button>
@@ -352,46 +352,29 @@
 
   <!-- Typing placeholder — single global instance; cleared before restart -->
   <script src="js/placeholder.js"></script>
-  
-    <!-- Auth panel -->
+
+    <!-- Auth panel — continue with existing VEXDYN account only -->
     <div class="auth-backdrop" data-auth-backdrop hidden aria-hidden="true"></div>
     <div class="auth-panel" data-auth-panel hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="auth-title">
       <div class="auth-panel-head">
-        <h2 id="auth-title" data-auth-title>Sign in</h2>
+        <h2 id="auth-title" data-auth-title>Continue with VEXDYN</h2>
         <button type="button" class="auth-close" data-auth-close aria-label="Close">×</button>
       </div>
+      <p class="auth-lead" data-auth-lead>
+        Use the same email and password from your VEXDYN account.
+      </p>
       <p class="auth-msg" data-auth-msg hidden></p>
 
       <form data-auth-form="signin" class="auth-form" novalidate>
         <label class="auth-label" for="auth-si-email">Email</label>
-        <input id="auth-si-email" class="auth-input" name="email" type="email" autocomplete="email" required />
+        <input id="auth-si-email" class="auth-input" name="email" type="email" autocomplete="email" required placeholder="you@example.com" />
         <label class="auth-label" for="auth-si-pass">Password</label>
-        <input id="auth-si-pass" class="auth-input" name="password" type="password" autocomplete="current-password" required />
-        <button type="submit" class="auth-submit">Sign in</button>
-        <p class="auth-switch-line">No account? <a href="#" data-auth-switch="signup">Create one</a></p>
-        <p class="auth-hint">Password reset is available on <a href="https://vexdyn.pages.dev/#signin" target="_blank" rel="noopener">vexdyn.pages.dev</a>.</p>
-      </form>
-
-      <form data-auth-form="signup" class="auth-form" hidden novalidate>
-        <label class="auth-label" for="auth-su-name">Display name (optional)</label>
-        <input id="auth-su-name" class="auth-input" name="displayName" type="text" autocomplete="name" />
-        <label class="auth-label" for="auth-su-email">Email</label>
-        <input id="auth-su-email" class="auth-input" name="email" type="email" autocomplete="email" required />
-        <label class="auth-label" for="auth-su-pass">Password</label>
-        <input id="auth-su-pass" class="auth-input" name="password" type="password" autocomplete="new-password" required />
-        <button type="submit" class="auth-submit">Create account</button>
-        <p class="auth-switch-line">Have an account? <a href="#" data-auth-switch="signin">Sign in</a></p>
-      </form>
-
-      <form data-auth-form="verify" class="auth-form" hidden novalidate>
-        <p class="auth-lead">Enter the 6-digit code sent to your email.</p>
-        <input type="hidden" name="email" value="" />
-        <label class="auth-label" for="auth-ve-code">Verification code</label>
-        <input id="auth-ve-code" class="auth-input" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required />
-        <button type="submit" class="auth-submit">Verify &amp; sign in</button>
-        <p class="auth-switch-line">
-          <button type="button" class="auth-text-btn" data-auth-resend>Resend code</button>
-          · <a href="#" data-auth-switch="signup">Change email</a>
+        <input id="auth-si-pass" class="auth-input" name="password" type="password" autocomplete="current-password" required placeholder="••••••••" />
+        <button type="submit" class="auth-submit">Continue</button>
+        <p class="auth-hint">
+          No account yet? Create one on
+          <a href="https://vexdyn.pages.dev/#signin" target="_blank" rel="noopener">vexdyn.pages.dev</a>.
+          Password reset is there too.
         </p>
       </form>
     </div>

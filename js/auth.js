@@ -76,8 +76,17 @@ async function api(path, { method = "GET", body, token } = {}) {
       body: body ? JSON.stringify(body) : undefined,
       credentials: "omit",
     });
-  } catch {
-    return { ok: false, status: 0, data: { ok: false, error: "Could not reach the authentication server." } };
+  } catch (err) {
+    console.warn("[vexdyn-auth]", err);
+    return {
+      ok: false,
+      status: 0,
+      data: {
+        ok: false,
+        error:
+          "Could not reach the authentication server. Check your connection, or that this site is allowed to contact VEXDYN auth.",
+      },
+    };
   }
   let data = null;
   try {

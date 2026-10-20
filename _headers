@@ -4,10 +4,9 @@
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()
   Strict-Transport-Security: max-age=31536000; includeSubDomains
-  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://vexdyn-backend.blaisepatrick556.workers.dev; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
 
 # Files are not fingerprinted, so always revalidate (ETag makes this cheap).
-# Switch to "immutable" only after adding hashed filenames to the build.
 /css/*
   Cache-Control: public, max-age=0, must-revalidate
 

@@ -1,6 +1,6 @@
 /**
- * Lightweight auth panel (sign in / sign up / verify) for X-Ray.
- * Vanilla DOM — matches existing panel patterns (history panel).
+ * Sign-in panel for X-Ray — continue with existing VEXDYN account.
+ * Account creation and password reset stay on the main site.
  */
 
 import * as auth from "../auth.js";
@@ -13,15 +13,9 @@ export function createAuthPanel(doc, { onAuthChange } = {}) {
   const backdrop = doc.querySelector("[data-auth-backdrop]");
   const panel = doc.querySelector("[data-auth-panel]");
   const closeBtn = doc.querySelector("[data-auth-close]");
-  const titleEl = doc.querySelector("[data-auth-title]");
   const msgEl = doc.querySelector("[data-auth-msg]");
   const formSignIn = doc.querySelector("[data-auth-form=signin]");
-  const formSignUp = doc.querySelector("[data-auth-form=signup]");
-  const formVerify = doc.querySelector("[data-auth-form=verify]");
-  const switchEls = doc.querySelectorAll("[data-auth-switch]");
 
-  let mode = "signin"; // signin | signup | verify
-  let pendingEmail = "";
   let busy = false;
 
   function setMsg(text, type) {
@@ -37,20 +31,8 @@ export function createAuthPanel(doc, { onAuthChange } = {}) {
     msgEl.className = `auth-msg auth-msg-${type || "info"}`;
   }
 
-  function showMode(next) {
-    mode = next;
-    formSignIn && (formSignIn.hidden = next !== "signin");
-    formSignUp && (formSignUp.hidden = next !== "signup");
-    formVerify && (formVerify.hidden = next !== "verify");
-    if (titleEl) {
-      titleEl.textContent =
-        next === "signin" ? "Sign in" : next === "signup" ? "Create account" : "Verify email";
-    }
+  function open() {
     setMsg("");
-  }
-
-  function open(startMode = "signin") {
-    showMode(startMode);
     if (panel) {
       panel.hidden = false;
       panel.setAttribute("aria-hidden", "false");
@@ -60,8 +42,7 @@ export function createAuthPanel(doc, { onAuthChange } = {}) {
       backdrop.setAttribute("aria-hidden", "false");
     }
     doc.body.classList.add("auth-open");
-    const first = panel?.querySelector("input:not([type=hidden])");
-    first?.focus();
+    formSignIn?.querySelector("input[name=email]")?.focus();
   }
 
   function close() {
@@ -78,23 +59,21 @@ export function createAuthPanel(doc, { onAuthChange } = {}) {
     busy = false;
   }
 
-  function setBusy(form, on) {
-    busy = on;
-    form?.querySelectorAll("button[type=submit], button[data-auth-action]").forEach((b) => {
-      b.disabled = on;
-    });
-  }
-
   formSignIn?.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (busy) return;
     const email = formSignIn.querySelector("[name=email]")?.value?.trim() || "";
     const password = formSignIn.querySelector("[name=password]")?.value || "";
     if (!email || !password) {
-      setMsg("Enter your email and password.", "err");
+      setMsg("Enter your VEXDYN email and password.", "err");
       return;
     }
-    setBusy(formSignIn, true);
+    busy = true;
+    const btn = formSignIn.querySelector("[type=submit]");
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "Signing in…";
+    }
     setMsg("");
     try {
       const result = await auth.login(email, password);
@@ -102,90 +81,19 @@ export function createAuthPanel(doc, { onAuthChange } = {}) {
         onAuthChange?.(result.data.user);
         close();
       } else {
-        setMsg(result.data?.error || "Invalid email or password.", "err");
+        const msg =
+          result.status === 0
+            ? result.data?.error || "Could not reach the authentication server."
+            : result.data?.error || "Invalid email or password.";
+        setMsg(msg, "err");
       }
     } finally {
-      setBusy(formSignIn, false);
-    }
-  });
-
-  formSignUp?.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    if (busy) return;
-    const email = formSignUp.querySelector("[name=email]")?.value?.trim() || "";
-    const password = formSignUp.querySelector("[name=password]")?.value || "";
-    const displayName = formSignUp.querySelector("[name=displayName]")?.value?.trim() || "";
-    if (!email || !password) {
-      setMsg("Enter email and password.", "err");
-      return;
-    }
-    setBusy(formSignUp, true);
-    setMsg("");
-    try {
-      const result = await auth.register(email, password, displayName || undefined);
-      if (result.ok) {
-        pendingEmail = email;
-        const ve = formVerify?.querySelector("[name=email]");
-        if (ve) ve.value = email;
-        showMode("verify");
-        setMsg(
-          result.data?.message ||
-            "If an account exists for that email, a verification message has been sent.",
-          "ok"
-        );
-      } else {
-        setMsg(result.data?.error || "Registration failed.", "err");
+      busy = false;
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = "Continue";
       }
-    } finally {
-      setBusy(formSignUp, false);
     }
-  });
-
-  formVerify?.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    if (busy) return;
-    const email =
-      formVerify.querySelector("[name=email]")?.value?.trim() || pendingEmail || "";
-    const code = (formVerify.querySelector("[name=code]")?.value || "").replace(/\D/g, "").slice(0, 6);
-    if (!/^\d{6}$/.test(code)) {
-      setMsg("Enter the 6-digit code from your email.", "err");
-      return;
-    }
-    setBusy(formVerify, true);
-    setMsg("");
-    try {
-      const result = await auth.verifyEmail(email, code);
-      if (result.ok) {
-        onAuthChange?.(result.data.user);
-        close();
-      } else {
-        setMsg(result.data?.error || "That code is wrong or has expired.", "err");
-      }
-    } finally {
-      setBusy(formVerify, false);
-    }
-  });
-
-  formVerify?.querySelector("[data-auth-resend]")?.addEventListener("click", async () => {
-    if (busy) return;
-    const email =
-      formVerify.querySelector("[name=email]")?.value?.trim() || pendingEmail || "";
-    if (!email) return;
-    setBusy(formVerify, true);
-    try {
-      const result = await auth.resendVerification(email);
-      setMsg(result.data?.message || result.data?.error || "Request sent.", result.ok ? "ok" : "err");
-    } finally {
-      setBusy(formVerify, false);
-    }
-  });
-
-  switchEls.forEach((el) => {
-    el.addEventListener("click", (e) => {
-      e.preventDefault();
-      const to = el.getAttribute("data-auth-switch");
-      if (to === "signin" || to === "signup" || to === "verify") showMode(to);
-    });
   });
 
   closeBtn?.addEventListener("click", close);
@@ -194,5 +102,9 @@ export function createAuthPanel(doc, { onAuthChange } = {}) {
     if (e.key === "Escape" && panel && !panel.hidden) close();
   });
 
-  return { open, close, showMode };
+  return {
+    open: () => open(),
+    close,
+    showMode: () => open(),
+  };
 }
