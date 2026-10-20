@@ -256,15 +256,18 @@
 
 .badge-soon {
   display: inline-block;
-  font-size: 9px;
-  font-weight: 600;
-  color: var(--muted);
-  border: 1px solid var(--border-strong);
-  padding: 2px 7px;
-  border-radius: 20px;
+  font-size: 8px;
+  font-weight: 500;
+  color: rgba(140, 148, 160, 0.45);
+  border: 1px solid rgba(120, 130, 145, 0.18);
+  background: transparent;
+  padding: 1px 5px;
+  border-radius: 999px;
   margin-left: 6px;
-  vertical-align: middle;
-  letter-spacing: 0.04em;
+  vertical-align: 1px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.7;
 }
 
 /* Header BETA pill */
@@ -284,36 +287,19 @@
   }
 }
 
-/* Soften "Soon" labels — gray, low contrast, not shouty */
-.badge-soon {
-  display: inline-block;
-  font-size: 8px;
-  font-weight: 500;
-  color: rgba(160, 168, 180, 0.55);
-  border: 1px solid rgba(120, 130, 145, 0.22);
-  background: rgba(120, 130, 145, 0.06);
-  padding: 1px 6px;
-  border-radius: 20px;
-  margin-left: 6px;
-  vertical-align: middle;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  opacity: 0.85;
-}
 
-.hint-auth-link {
-  background: none;
-  border: none;
-  padding: 0;
-  margin: 0;
-  font: inherit;
-  color: var(--muted);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  cursor: pointer;
-  opacity: 0.85;
+
+
+
+
+/* Upcoming checks — visible but quiet */
+.feature-card--soon {
+  opacity: 0.42;
+  filter: grayscale(0.35);
 }
-.hint-auth-link:hover {
-  color: var(--text, #e8eef5);
-  opacity: 1;
+.feature-card--soon .feature-icon {
+  opacity: 0.7;
+}
+.feature-card--soon .desc {
+  color: var(--muted);
 }

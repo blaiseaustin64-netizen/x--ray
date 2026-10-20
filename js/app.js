@@ -325,6 +325,7 @@ function init() {
   }
 
   function renderAuthState(user) {
+    const hint = $("[data-scan-hint]");
     if (user) {
       if (authOpenBtn) authOpenBtn.hidden = true;
       if (authAvatar) {
@@ -333,10 +334,12 @@ function init() {
         authAvatar.title = user.email || "Account";
       }
       if (authEmailEl) authEmailEl.textContent = user.email || "";
+      if (hint) hint.textContent = "Signed in · Free scan";
     } else {
       if (authOpenBtn) authOpenBtn.hidden = false;
       if (authAvatar) authAvatar.hidden = true;
       if (authMenu) authMenu.hidden = true;
+      if (hint) hint.textContent = "No account required · Free scan";
     }
   }
 
